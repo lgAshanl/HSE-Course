@@ -41,4 +41,6 @@ endif()
 # Now simply link against gtest or gtest_main as needed. Eg
 add_executable(biginteger tests.cpp biginteger.h biginteger.cpp)
 target_link_libraries(biginteger gtest_main)
+target_compile_features(biginteger PRIVATE cxx_std_20)
+target_compile_options(biginteger PUBLIC -Wall -Wextra)
 add_test(NAME biginteger_test COMMAND biginteger)
