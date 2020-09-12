@@ -8,6 +8,8 @@
 #include "biginteger.h"
 #include "gtest/gtest.h"
 
+using big_integer::BigInteger;
+
 TEST(AssignmentFromInt, Test1) {
     int value = 42;
     BigInteger bigint_val;
