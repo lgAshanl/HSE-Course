@@ -4,9 +4,9 @@
 
 #include "biginteger.h"
 
+#include <exception>
 #include <istream>
 #include <stdexcept>
-#include <exception>
 
 big_integer::BigInteger::BigInteger() : is_negative_(false), limbs_{0} {}
 
@@ -357,6 +357,7 @@ big_integer::BigInteger big_integer::BigInteger::operator%(
 }
 
 std::string big_integer::BigInteger::toString() const {
+  if (IsZeroed()) return "0";
   std::string result;
   if (is_negative_) {
     result += '-';
@@ -488,7 +489,8 @@ big_integer::BigInteger::BigInteger(std::string_view string) {
   limbs_ = {0};
   is_negative_ = false;
   if (string.empty()) {
-    throw std::runtime_error("Cannot construct BigInteger from provided string");
+    throw std::runtime_error(
+        "Cannot construct BigInteger from provided string");
   }
   size_t pos = 0;
   if (string[0] == '-') {
@@ -497,7 +499,8 @@ big_integer::BigInteger::BigInteger(std::string_view string) {
   }
   for (; pos < string.size(); ++pos) {
     if (!isdigit(string[pos])) {
-      throw std::runtime_error("Cannot construct BigInteger from provided string");
+      throw std::runtime_error(
+          "Cannot construct BigInteger from provided string");
     }
     *this = *this * 10 + (string[pos] - '0');
   }
