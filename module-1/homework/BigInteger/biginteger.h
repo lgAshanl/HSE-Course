@@ -13,7 +13,7 @@ class BigInteger {
  public:
   BigInteger();
   BigInteger(std::string_view string);  // NOLINT(google-explicit-constructor)
-  BigInteger(int value);  // NOLINT(google-explicit-constructor)
+  BigInteger(int value);                // NOLINT(google-explicit-constructor)
 
   BigInteger(const BigInteger& other);
   BigInteger(BigInteger&& other) noexcept;
@@ -123,6 +123,8 @@ class BigInteger {
       const std::vector<uint32_t>& left, const std::vector<uint32_t>& right);
   static std::vector<uint32_t> MultiplyAbsoluteValues(
       const std::vector<uint32_t>& left, const std::vector<uint32_t>& right);
+  static std::vector<uint32_t> MultiplyAbsoluteValuesWithKaratsubaAlgo(
+      const std::vector<uint32_t>& left, const std::vector<uint32_t>& right);
   static std::vector<uint32_t> MultiplyAbsoluteValuesNaive(
       const std::vector<uint32_t>& shorter,
       const std::vector<uint32_t>& longer);
@@ -156,6 +158,8 @@ class BigInteger {
    * handle carried bits with bitwise operations
    */
   std::vector<uint32_t> limbs_;
+
+  static constexpr size_t KARATSUBA_STOP_RECURSION_SIZE = 10;
 };
 
 std::istream& operator>>(std::istream& in, BigInteger& value);

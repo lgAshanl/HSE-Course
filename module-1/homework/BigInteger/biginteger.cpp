@@ -56,6 +56,7 @@ std::vector<uint32_t> big_integer::BigInteger::SummarizeAbsoluteValues(
   std::size_t min_size = std::min(left.size(), right.size());
   uint32_t carry = 0;
   std::vector<uint32_t> digits(min_size);
+  digits.reserve(std::max(left.size(), right.size()));
   while (pos < min_size) {
     uint64_t digits_sum =
         uint64_t(carry) + uint64_t(left[pos]) + uint64_t(right[pos]);
@@ -279,12 +280,69 @@ big_integer::BigInteger& big_integer::BigInteger::operator--() {
 
 std::vector<uint32_t> big_integer::BigInteger::MultiplyAbsoluteValues(
     const std::vector<uint32_t>& left, const std::vector<uint32_t>& right) {
-  std::vector<uint32_t> result;
-  if (left.size() < right.size()) {
-    result = MultiplyAbsoluteValuesNaive(left, right);
+  return MultiplyAbsoluteValuesWithKaratsubaAlgo(left, right);
+}
+
+std::vector<uint32_t>
+big_integer::BigInteger::MultiplyAbsoluteValuesWithKaratsubaAlgo(
+    const std::vector<uint32_t>& left, const std::vector<uint32_t>& right) {
+  if (left.size() < KARATSUBA_STOP_RECURSION_SIZE) {
+    return MultiplyAbsoluteValuesNaive(right, left);
+  } else if (right.size() < KARATSUBA_STOP_RECURSION_SIZE) {
+    return MultiplyAbsoluteValuesNaive(left, right);
   } else {
-    result = MultiplyAbsoluteValuesNaive(right, left);
+    auto half_size = std::min(std::min(left.size(), right.size()),
+                              std::max(left.size() / 2, right.size() / 2));
+    std::vector a(left.begin() + half_size, left.end());
+    std::vector b(left.begin(), left.begin() + half_size);
+    std::vector c(right.begin() + half_size, right.end());
+    std::vector d(right.begin(), right.begin() + half_size);
+
+    auto mul_ac = MultiplyAbsoluteValuesWithKaratsubaAlgo(a, c);
+    auto mul_bd = MultiplyAbsoluteValuesWithKaratsubaAlgo(b, d);
+    auto sum_ab = SummarizeAbsoluteValues(a, b);
+    auto sum_cd = SummarizeAbsoluteValues(c, d);
+
+    auto mul_sum_ab_sum_cd =
+        MultiplyAbsoluteValuesWithKaratsubaAlgo(sum_ab, sum_cd);
+    auto center = SubtractAbsoluteValues(
+        mul_sum_ab_sum_cd, SummarizeAbsoluteValues(mul_ac, mul_bd));
+
+    // I am trying to avoid unnecessary copying and memory allocations, so
+    // I can use mul_bd instance to store result
+    auto& result = mul_bd;
+
+    ShiftLimbsLeft(center, half_size);
+    ShiftLimbsLeft(mul_ac, half_size * 2);
+    result = SummarizeAbsoluteValues(result,
+                                     SummarizeAbsoluteValues(center, mul_ac));
+    return result;
   }
+}
+
+std::vector<uint32_t> big_integer::BigInteger::MultiplyAbsoluteValuesNaive(
+    const std::vector<uint32_t>& shorter, const std::vector<uint32_t>& longer) {
+  std::vector<uint32_t> result(shorter.size() + longer.size() - 1, 0);
+  std::vector<uint32_t> tmp_result(longer.size() + shorter.size());
+  for (size_t short_pos = 0; short_pos < shorter.size(); ++short_pos) {
+    uint64_t carry = 0;
+    for (size_t long_pos = 0; long_pos < longer.size(); ++long_pos) {
+      uint64_t value =
+          carry + uint64_t(shorter[short_pos]) * uint64_t(longer[long_pos]);
+      tmp_result[long_pos + short_pos] = GetLowPart(value);
+      carry = GetHighPart(value);
+    }
+    if (carry) {
+      tmp_result[short_pos + longer.size()] = uint32_t(carry);
+    }
+    result = SummarizeAbsoluteValues(result, tmp_result);
+
+    tmp_result[short_pos] = 0;
+    if (carry) {
+      tmp_result[short_pos + longer.size()] = 0;
+    }
+  }
+  Normalize(result);
   return result;
 }
 
@@ -327,19 +385,22 @@ big_integer::BigInteger big_integer::BigInteger::operator*(
   }
   auto result = big_integer::BigInteger(
       this->is_negative_ != other.is_negative_,
-      MultiplyAbsoluteValues(this->limbs_, other.limbs_));
+      MultiplyAbsoluteValuesWithKaratsubaAlgo(this->limbs_, other.limbs_));
   return result;
 }
 
 big_integer::BigInteger big_integer::BigInteger::operator/(
     const big_integer::BigInteger& other) const {
-  return big_integer::BigInteger(
+  if (other.IsZeroed()) {
+    throw std::logic_error("Division by zero");
+  }
+  auto result = big_integer::BigInteger(
       this->is_negative_ != other.is_negative_,
       DivideAbsoluteValues(this->limbs_, other.limbs_).first);
-}
-
-bool big_integer::BigInteger::IsZeroed() const {
-  return limbs_.size() == 1 && limbs_[0] == 0;
+  if (result.IsZeroed()) {
+    result.is_negative_ = false;
+  }
+  return result;
 }
 
 big_integer::BigInteger big_integer::BigInteger::operator%(
@@ -464,27 +525,6 @@ size_t big_integer::BigInteger::GetMostSignificantBitPosition(
          (value.size() - 1) * sizeof(uint32_t) * 8U;
 }
 
-std::vector<uint32_t> big_integer::BigInteger::MultiplyAbsoluteValuesNaive(
-    const std::vector<uint32_t>& shorter, const std::vector<uint32_t>& longer) {
-  std::vector<uint32_t> result = {0};
-  result.reserve(shorter.size() + longer.size() + 1U);
-  for (size_t short_pos = 0; short_pos < shorter.size(); ++short_pos) {
-    uint64_t carry = 0;
-    std::vector<uint32_t> tmp_result(longer.size() + shorter.size(), 0);
-    for (size_t long_pos = 0; long_pos < longer.size(); ++long_pos) {
-      uint64_t value =
-          carry + uint64_t(shorter[short_pos]) * uint64_t(longer[long_pos]);
-      tmp_result[long_pos + short_pos] = GetLowPart(value);
-      carry = GetHighPart(value);
-    }
-    if (carry) {
-      tmp_result[short_pos + longer.size()] = uint32_t(carry);
-    }
-    result = SummarizeAbsoluteValues(result, tmp_result);
-  }
-  Normalize(result);
-  return result;
-}
 big_integer::BigInteger::BigInteger(std::string_view string) {
   limbs_ = {0};
   is_negative_ = false;
@@ -538,3 +578,8 @@ std::istream& big_integer::operator>>(std::istream& in,
   }
   return in;
 }
+
+bool big_integer::BigInteger::IsZeroed() const {
+  return limbs_.size() == 1 && limbs_[0] == 0;
+}
+
