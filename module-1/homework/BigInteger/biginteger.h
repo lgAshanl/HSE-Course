@@ -117,6 +117,8 @@ class BigInteger {
   };
   static CompareResult CompareAbsoluteValues(
       const std::vector<uint32_t>& left, const std::vector<uint32_t>& right);
+  static void SummarizeAbsoluteValuesInplace(
+      std::vector<uint32_t>& left, const std::vector<uint32_t>& right);
   static std::vector<uint32_t> SummarizeAbsoluteValues(
       const std::vector<uint32_t>& left, const std::vector<uint32_t>& right);
   static std::vector<uint32_t> SubtractAbsoluteValues(
@@ -131,6 +133,8 @@ class BigInteger {
   static std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
   DivideAbsoluteValues(const std::vector<uint32_t>& left,
                        const std::vector<uint32_t>& right);
+  static std::pair<std::vector<uint32_t>, uint32_t> DivideAbsoluteValueByLimb(
+      const std::vector<uint32_t>& left, uint32_t limb);
   static void ShiftLimbsLeft(std::vector<uint32_t>& limbs, size_t count);
   static void ShiftLimbsRight(std::vector<uint32_t>& limbs, long count);
   static void ShiftBitsLeft(std::vector<uint32_t>& limbs, size_t count);
@@ -159,7 +163,7 @@ class BigInteger {
    */
   std::vector<uint32_t> limbs_;
 
-  static constexpr size_t KARATSUBA_STOP_RECURSION_SIZE = 10;
+  static constexpr size_t KARATSUBA_STOP_RECURSION_SIZE = 70;
 };
 
 std::istream& operator>>(std::istream& in, BigInteger& value);

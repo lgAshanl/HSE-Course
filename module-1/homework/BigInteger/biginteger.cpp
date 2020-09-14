@@ -50,38 +50,6 @@ uint32_t big_integer::BigInteger::GetLowPart(uint64_t value) noexcept {
   return static_cast<uint32_t>(value & (~uint32_t(0)));
 }
 
-std::vector<uint32_t> big_integer::BigInteger::SummarizeAbsoluteValues(
-    const std::vector<uint32_t>& left, const std::vector<uint32_t>& right) {
-  std::size_t pos = 0;
-  std::size_t min_size = std::min(left.size(), right.size());
-  uint32_t carry = 0;
-  std::vector<uint32_t> digits(min_size);
-  digits.reserve(std::max(left.size(), right.size()));
-  while (pos < min_size) {
-    uint64_t digits_sum =
-        uint64_t(carry) + uint64_t(left[pos]) + uint64_t(right[pos]);
-    digits[pos] = GetLowPart(digits_sum);
-    carry = GetHighPart(digits_sum);
-    pos++;
-  }
-  while (pos < left.size()) {
-    uint64_t digits_sum = uint64_t(carry) + uint64_t(left[pos]);
-    digits.push_back(GetLowPart(digits_sum));
-    carry = GetHighPart(digits_sum);
-    pos++;
-  }
-  while (pos < right.size()) {
-    uint64_t digits_sum = uint64_t(carry) + uint64_t(right[pos]);
-    digits.push_back(GetLowPart(digits_sum));
-    carry = GetHighPart(digits_sum);
-    pos++;
-  }
-  if (carry != 0) {
-    digits.push_back(carry);
-  }
-  return digits;
-}
-
 big_integer::BigInteger big_integer::BigInteger::operator-(
     const big_integer::BigInteger& other) const {
   if (is_negative_ != other.is_negative_) {
@@ -124,6 +92,31 @@ big_integer::BigInteger::CompareAbsoluteValues(
     }
     return CompareResult::EQUAL;
   }
+}
+
+std::vector<uint32_t> big_integer::BigInteger::SummarizeAbsoluteValues(
+    const std::vector<uint32_t>& left, const std::vector<uint32_t>& right) {
+  std::vector<uint32_t> result(std::max(left.size(), right.size()));
+
+  std::size_t pos = 0;
+  uint32_t carry = 0;
+  while (pos < result.size()) {
+    uint64_t digits_sum;
+    if (pos < right.size()) {
+      digits_sum = uint64_t(carry) + uint64_t(left[pos]) + uint64_t(right[pos]);
+    } else {
+      digits_sum = uint64_t(left[pos]) + carry;
+    }
+    result[pos] = GetLowPart(digits_sum);
+    carry = GetHighPart(digits_sum);
+    pos++;
+  }
+
+  if (carry != 0) {
+    result.push_back(carry);
+  }
+
+  return result;
 }
 
 std::vector<uint32_t> big_integer::BigInteger::SubtractAbsoluteValues(
@@ -308,43 +301,57 @@ big_integer::BigInteger::MultiplyAbsoluteValuesWithKaratsubaAlgo(
     auto center = SubtractAbsoluteValues(
         mul_sum_ab_sum_cd, SummarizeAbsoluteValues(mul_ac, mul_bd));
 
-    // I am trying to avoid unnecessary copying and memory allocations, so
-    // I can use mul_bd instance to store result
+    // I am trying to avoid unnecessary copying and memory allocations,
+    // so I can use mul_bd instance to store result
+    // mul_bd is part of the final answer, so I need to add remaining values
     auto& result = mul_bd;
 
     ShiftLimbsLeft(center, half_size);
     ShiftLimbsLeft(mul_ac, half_size * 2);
+
     result = SummarizeAbsoluteValues(result,
-                                     SummarizeAbsoluteValues(center, mul_ac));
+                                     SummarizeAbsoluteValues(mul_ac, center));
     return result;
   }
 }
 
 std::vector<uint32_t> big_integer::BigInteger::MultiplyAbsoluteValuesNaive(
     const std::vector<uint32_t>& shorter, const std::vector<uint32_t>& longer) {
-  std::vector<uint32_t> result(shorter.size() + longer.size() - 1, 0);
-  std::vector<uint32_t> tmp_result(longer.size() + shorter.size());
+  std::vector<uint32_t> result(shorter.size() + longer.size(), 0);
   for (size_t short_pos = 0; short_pos < shorter.size(); ++short_pos) {
     uint64_t carry = 0;
     for (size_t long_pos = 0; long_pos < longer.size(); ++long_pos) {
       uint64_t value =
-          carry + uint64_t(shorter[short_pos]) * uint64_t(longer[long_pos]);
-      tmp_result[long_pos + short_pos] = GetLowPart(value);
+          carry + uint64_t(shorter[short_pos]) * uint64_t(longer[long_pos]) +
+          uint64_t(result[long_pos + short_pos]);
+      result[long_pos + short_pos] = GetLowPart(value);
       carry = GetHighPart(value);
     }
     if (carry) {
-      tmp_result[short_pos + longer.size()] = uint32_t(carry);
-    }
-    result = SummarizeAbsoluteValues(result, tmp_result);
-
-    tmp_result[short_pos] = 0;
-    if (carry) {
-      tmp_result[short_pos + longer.size()] = 0;
+      result[short_pos + longer.size()] = uint32_t(carry);
     }
   }
   Normalize(result);
   return result;
 }
+
+std::pair<std::vector<uint32_t>, uint32_t>
+big_integer::BigInteger::DivideAbsoluteValueByLimb(
+    const std::vector<uint32_t>& left, uint32_t right) {
+  std::vector<uint32_t> result;
+  result.resize(left.size());
+  uint64_t carry = 0;
+  int pos = int(left.size()) - 1;
+  while (pos >= 0) {
+    uint64_t cur = left[pos] + (uint64_t(carry) << (sizeof(uint32_t) * 8U));
+    result[pos] = cur / right;
+    carry = cur % right;
+    pos--;
+  }
+  Normalize(result);
+  return std::make_pair(result, carry);
+}
+
 
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
 big_integer::BigInteger::DivideAbsoluteValues(
@@ -426,8 +433,8 @@ std::string big_integer::BigInteger::toString() const {
   std::vector<uint32_t> limbs = limbs_;
   for (;;) {
     if (limbs.size() == 1U && limbs[0] == 0) break;
-    auto division_result = DivideAbsoluteValues(limbs, {10U});
-    result += char(division_result.second[0] % 10 + '0');
+    auto division_result = DivideAbsoluteValueByLimb(limbs, 10U);
+    result += char(division_result.second + '0');
     std::swap(limbs, division_result.first);
   }
   if (is_negative_) {
@@ -582,4 +589,3 @@ std::istream& big_integer::operator>>(std::istream& in,
 bool big_integer::BigInteger::IsZeroed() const {
   return limbs_.size() == 1 && limbs_[0] == 0;
 }
-
