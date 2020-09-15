@@ -118,8 +118,6 @@ class BigInteger {
   };
   static CompareResult CompareAbsoluteValues(
       const std::vector<uint32_t>& left, const std::vector<uint32_t>& right);
-  static void SummarizeAbsoluteValuesInplace(
-      std::vector<uint32_t>& left, const std::vector<uint32_t>& right);
   static std::vector<uint32_t> SummarizeAbsoluteValues(
       const std::vector<uint32_t>& left, const std::vector<uint32_t>& right);
   static std::vector<uint32_t> SubtractAbsoluteValues(
