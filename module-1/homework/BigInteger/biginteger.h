@@ -57,6 +57,7 @@ class BigInteger {
   BigInteger operator--(int);  // NOLINT(cert-dcl21-cpp)
 
   BigInteger operator-() const;
+  BigInteger operator+() const;
 
   BigInteger& operator+=(const BigInteger& other);
   BigInteger& operator-=(const BigInteger& other);

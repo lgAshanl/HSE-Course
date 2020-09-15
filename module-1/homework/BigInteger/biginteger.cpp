@@ -161,8 +161,12 @@ std::vector<uint32_t> big_integer::BigInteger::SubtractAbsoluteValues(
 }
 
 big_integer::BigInteger big_integer::BigInteger::operator-() const {
-  if (limbs_.size() == 1 && limbs_[0] == 0) return *this;
+  if (IsZeroed()) return *this;
   return big_integer::BigInteger(!is_negative_, limbs_);
+}
+
+big_integer::BigInteger big_integer::BigInteger::operator+() const {
+  return *this;
 }
 
 big_integer::BigInteger& big_integer::BigInteger::operator+=(
