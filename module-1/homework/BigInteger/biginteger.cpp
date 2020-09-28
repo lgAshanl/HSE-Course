@@ -484,7 +484,7 @@ void big_integer::BigInteger::ShiftBitsRight(std::vector<uint32_t>& limbs,
   auto limbs_count = count / long(sizeof(uint32_t) * 8U);
   ShiftLimbsRight(limbs, limbs_count);
 
-  count %= sizeof(uint32_t);
+  count %= sizeof(uint32_t) * 8U;
   uint32_t borrow = 0;
   for (auto i = long(limbs.size()) - 1; i >= 0; --i) {
     uint32_t new_limb_value = (limbs[size_t(i)] >> size_t(count)) | borrow;
