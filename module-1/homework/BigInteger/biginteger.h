@@ -148,9 +148,9 @@ class BigInteger {
    * This constructor should be used from internal arithmetic functions
    * It provides necessary sign checks
    * @param is_negative is the number negative
-   * @param digits the digits of the number
+   * @param limbs the limbs of the number
    */
-  BigInteger(bool is_negative, std::vector<uint32_t> digits);
+  BigInteger(bool is_negative, std::vector<uint32_t> limbs);
   [[nodiscard]] bool IsZeroed() const;
 
  private:

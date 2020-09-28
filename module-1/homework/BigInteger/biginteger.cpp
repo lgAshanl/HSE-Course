@@ -101,14 +101,14 @@ std::vector<uint32_t> big_integer::BigInteger::SummarizeAbsoluteValues(
   std::size_t pos = 0;
   uint32_t carry = 0;
   while (pos < result.size()) {
-    uint64_t digits_sum;
+    uint64_t limbs_sum;
     if (pos < right.size()) {
-      digits_sum = uint64_t(carry) + uint64_t(left[pos]) + uint64_t(right[pos]);
+      limbs_sum = uint64_t(carry) + uint64_t(left[pos]) + uint64_t(right[pos]);
     } else {
-      digits_sum = uint64_t(left[pos]) + carry;
+      limbs_sum = uint64_t(left[pos]) + carry;
     }
-    result[pos] = GetLowPart(digits_sum);
-    carry = GetHighPart(digits_sum);
+    result[pos] = GetLowPart(limbs_sum);
+    carry = GetHighPart(limbs_sum);
     pos++;
   }
 
@@ -356,7 +356,6 @@ big_integer::BigInteger::DivideAbsoluteValueByLimb(
   return std::make_pair(result, carry);
 }
 
-
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
 big_integer::BigInteger::DivideAbsoluteValues(
     const std::vector<uint32_t>& left, const std::vector<uint32_t>& right) {
@@ -384,8 +383,8 @@ big_integer::BigInteger::DivideAbsoluteValues(
 }
 
 big_integer::BigInteger::BigInteger(bool is_negative,
-                                    std::vector<uint32_t> digits)
-    : is_negative_(is_negative), limbs_(std::move(digits)) {
+                                    std::vector<uint32_t> limbs)
+    : is_negative_(is_negative), limbs_(std::move(limbs)) {
   if (IsZeroed()) is_negative_ = false;
 }
 
